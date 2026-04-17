@@ -1,7 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 function getToken() {
   return localStorage.getItem('token')
+}
+
+function notifyAuthChanged() {
+  window.dispatchEvent(new Event('auth-change'))
 }
 
 export class AuthError extends Error {
@@ -35,16 +39,22 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  })
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    })
+  } catch (error) {
+    throw new Error('Unable to reach the server. Please try again later.')
+  }
 
   const data = await parseResponse(response)
 
   if (response.status === 401) {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    notifyAuthChanged()
     throw new AuthError(data.error || 'Session expired. Please log in again.')
   }
 
@@ -53,6 +63,50 @@ async function request(path, options = {}) {
   }
 
   return data
+}
+
+export { notifyAuthChanged }
+
+async function download(path, fallbackFilename) {
+  const headers = {}
+  const token = getToken()
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { headers })
+  } catch (error) {
+    throw new Error('Unable to reach the server. Please try again later.')
+  }
+
+  if (response.status === 401) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    notifyAuthChanged()
+    throw new AuthError()
+  }
+
+  if (!response.ok) {
+    const data = await parseResponse(response)
+    throw new Error(data.error || data.message || 'Download failed')
+  }
+
+  const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') || ''
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/)
+  const filename = filenameMatch?.[1] || fallbackFilename || 'download'
+
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+  return { filename }
 }
 
 export const api = {
@@ -66,8 +120,17 @@ export const api = {
   generateCourse: (payload) => request('/course/generate', { method: 'POST', body: JSON.stringify(payload) }),
   getMyCourses: () => request('/course/my-courses'),
   getCourse: (courseId) => request(`/course/${courseId}`),
+  getCourseProgress: (courseId) => request(`/course/${courseId}/progress`),
+  saveCourseProgress: (courseId, payload) => request(`/course/${courseId}/progress`, { method: 'PUT', body: JSON.stringify(payload) }),
+  getCourseVideos: (courseId, moduleIndex, lessonIndex) => request(`/course/${courseId}/videos?module_index=${moduleIndex}&lesson_index=${lessonIndex}`),
+  downloadCoursePdf: (courseId) => download(`/course/${courseId}/export-pdf`, 'course.pdf'),
+  downloadCourseSchedule: (courseId, params) => {
+    const search = new URLSearchParams(params).toString()
+    return download(`/course/${courseId}/export-schedule?${search}`, 'course_schedule.ics')
+  },
   completeCourse: (courseId) => request(`/course/${courseId}/complete`, { method: 'POST' }),
   getCertificate: (certificateId) => request(`/certificate/${certificateId}`),
+  downloadCertificate: (certificateId) => download(`/certificate/${certificateId}/download`, `certificate_${certificateId}.pdf`),
   getAdminSummary: () => request('/admin/summary'),
   getAdminTable: (tableName) => request(`/admin/${tableName}`),
   createAdminRecord: (tableName, payload) => request(`/admin/${tableName}`, { method: 'POST', body: JSON.stringify(payload) }),

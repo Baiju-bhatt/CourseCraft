@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 
-const DEFAULT_ROLE = 'Data Analyst'
-
 export default function GenerateCoursePage() {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
@@ -13,8 +11,9 @@ export default function GenerateCoursePage() {
   const [assessmentResult, setAssessmentResult] = useState(null)
   const [answers, setAnswers] = useState([])
   const [config, setConfig] = useState({ llm_enabled: false, model: null, suggested_roles: [] })
+  const isGenerating = loading && (step === 1 || step === 3)
   const [form, setForm] = useState({
-    target_role: DEFAULT_ROLE,
+    target_role: '',
     current_role: '',
     experience_type: 'beginner',
   })
@@ -116,11 +115,20 @@ export default function GenerateCoursePage() {
   return (
     <main className="page container narrow-wide">
       <div className="card form-card">
+        {isGenerating && (
+          <div className="loading-overlay" role="status" aria-live="polite">
+            <div className="loading-overlay-card">
+              <div className="loading-spinner" />
+              <h3>{step === 3 ? 'Generating your personalized course...' : 'Working on your request...'}</h3>
+              <p className="subtle">This can take a little time because the platform is building role-specific modules, quizzes, and practice tasks.</p>
+            </div>
+          </div>
+        )}
         <div className="page-heading-row">
           <div>
             <h2>Generate Personalized Course</h2>
             <p className="subtle">
-              Enter any job role and generate either a beginner crash course or an assessment-based personalized path.
+              Enter a target role manually and generate either a beginner crash course or an assessment-based personalized path.
             </p>
           </div>
           <div className={`engine-badge ${config.llm_enabled ? 'ready' : 'fallback'}`}>
@@ -137,16 +145,10 @@ export default function GenerateCoursePage() {
             <label>
               Target Role
               <input
-                list="role-suggestions"
                 value={form.target_role}
                 onChange={(e) => updateForm('target_role', e.target.value)}
-                placeholder="Example: Data Analyst, Product Manager, DevOps Engineer"
+                placeholder="Example: Data Engineer, Data Scientist, AI Developer, ML Engineer"
               />
-              <datalist id="role-suggestions">
-                {(config.suggested_roles || []).map((role) => (
-                  <option key={role} value={role} />
-                ))}
-              </datalist>
             </label>
 
             <label>
@@ -169,9 +171,9 @@ export default function GenerateCoursePage() {
             <div className="card note-card">
               <p className="muted-label">How this works</p>
               <ul className="compact-list">
-                <li>Assessment questions are generated based on the role you enter.</li>
+                <li>Type a target role manually. This version is optimized for Python-related roles such as Data Engineer, Data Scientist, AI Developer, and ML Engineer.</li>
                 <li>The final course plan focuses more on weak topics when an assessment is used.</li>
-                <li>Without a Hugging Face token, the app switches to a stable local fallback generator.</li>
+                <li>The platform keeps the course flow, capstone, and supporting features aligned around the role you enter.</li>
               </ul>
             </div>
 
@@ -202,7 +204,7 @@ export default function GenerateCoursePage() {
             <div className="assessment-list">
               {questions.map((question, index) => (
                 <div key={question.id} className="assessment-card">
-                  <p className="muted-label">{question.topic}</p>
+                  <div className="question-meta-row"><p className="muted-label">{question.topic}</p><span className={`difficulty-badge ${String(question.difficulty || 'Medium').toLowerCase()}`}>{question.difficulty || 'Medium'}</span></div>
                   <h4>{index + 1}. {question.question}</h4>
                   <div className="option-list">
                     {question.options.map((option, optionIndex) => {

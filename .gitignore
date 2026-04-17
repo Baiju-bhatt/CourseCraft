@@ -1,3 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# User uploads
+backend/user_uploads/
+
+# Optional but good
 node_modules/
 dist/
-.env
+frontend/dist/

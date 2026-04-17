@@ -1,6 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
-import ChatbotWidget from './components/ChatbotWidget'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -10,6 +10,13 @@ import CoursePage from './pages/CoursePage'
 import PracticeLabPage from './pages/PracticeLabPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPortalPage from './pages/AdminPortalPage'
+import ChatbotWidget from './components/ChatbotWidget'
+
+function getAuthSnapshot() {
+  const token = localStorage.getItem('token')
+  const user = JSON.parse(localStorage.getItem('user') || 'null')
+  return { token, user }
+}
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -29,12 +36,18 @@ function AdminRoute({ children }) {
 }
 
 export default function App() {
-  // Show the chatbot widget only for authenticated, non-admin users
-  // (regular learners who benefit most from the AI assistant).
-  // Admin users have a separate portal and don't need the learning chatbot.
-  const token = localStorage.getItem('token')
-  const user = JSON.parse(localStorage.getItem('user') || 'null')
-  const showChatbot = Boolean(token) && !user?.is_admin
+  const location = useLocation()
+  const [auth, setAuth] = useState(getAuthSnapshot())
+
+  useEffect(() => {
+    const syncAuth = () => setAuth(getAuthSnapshot())
+    window.addEventListener('storage', syncAuth)
+    window.addEventListener('auth-change', syncAuth)
+    return () => {
+      window.removeEventListener('storage', syncAuth)
+      window.removeEventListener('auth-change', syncAuth)
+    }
+  }, [])
 
   return (
     <div className="app-shell">
@@ -85,9 +98,7 @@ export default function App() {
           }
         />
       </Routes>
-
-      {/* Global floating AI chatbot — visible on all authenticated learner pages */}
-      {showChatbot && <ChatbotWidget />}
+      {auth.token && !auth.user?.is_admin ? <ChatbotWidget /> : null}
     </div>
   )
 }

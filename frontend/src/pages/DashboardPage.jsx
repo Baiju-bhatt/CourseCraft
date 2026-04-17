@@ -30,7 +30,6 @@ export default function DashboardPage() {
         </div>
         <div className="hero-actions">
           <Link to="/generate-course" className="button-primary">Generate New Course</Link>
-          <Link to="/practice-lab" className="button-secondary">Open Practice Lab</Link>
         </div>
       </section>
 

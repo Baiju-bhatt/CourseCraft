@@ -1,3 +1,4 @@
+import { notifyAuthChanged } from '../api'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 export default function Navbar() {
@@ -11,6 +12,7 @@ export default function Navbar() {
   function logout() {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    notifyAuthChanged()
     navigate(onAdminRoute ? '/admin/login' : '/login')
   }
 

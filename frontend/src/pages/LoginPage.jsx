@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../api'
+import { api, notifyAuthChanged } from '../api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -16,6 +16,7 @@ export default function LoginPage() {
       const data = await api.login(form)
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      notifyAuthChanged()
       navigate(data.user?.is_admin ? '/admin/portal' : '/dashboard')
     } catch (err) {
       setError(err.message)

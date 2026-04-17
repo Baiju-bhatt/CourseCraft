@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { api, AuthError } from '../api'
-
-// ─── Icons (inline SVG – no extra dependency needed) ────────────────────────
 
 function ChatIcon() {
   return (
@@ -51,8 +51,6 @@ function LoginIcon() {
   )
 }
 
-// ─── Typing indicator (three bouncing dots) ──────────────────────────────────
-
 function TypingIndicator() {
   return (
     <div className="chatbot-typing-indicator" aria-label="AI is thinking">
@@ -63,53 +61,8 @@ function TypingIndicator() {
   )
 }
 
-// ─── Single message bubble ────────────────────────────────────────────────────
-
 function MessageBubble({ role, content }) {
   const isUser = role === 'user'
-
-  // Lightly format the assistant's plain-text response:
-  //  • Lines starting with a digit + period/paren → numbered list items
-  //  • Lines starting with '-', '•', or '*' → bullet list items
-  //  • Blank lines → paragraph breaks
-  function renderContent(text) {
-    if (isUser) {
-      return <p className="chatbot-bubble-text">{text}</p>
-    }
-
-    const paragraphs = text.split(/\n{2,}/)
-    return paragraphs.map((para, pIdx) => {
-      const lines = para.split('\n').filter((l) => l.trim() !== '')
-      const allBullet = lines.every((l) => /^[-•*]\s/.test(l.trim()))
-      const allNumbered = lines.every((l) => /^\d+[\.\)]\s/.test(l.trim()))
-
-      if (allBullet && lines.length > 1) {
-        return (
-          <ul key={pIdx} className="chatbot-bubble-list">
-            {lines.map((line, lIdx) => (
-              <li key={lIdx}>{line.replace(/^[-•*]\s+/, '')}</li>
-            ))}
-          </ul>
-        )
-      }
-
-      if (allNumbered && lines.length > 1) {
-        return (
-          <ol key={pIdx} className="chatbot-bubble-list chatbot-bubble-ol">
-            {lines.map((line, lIdx) => (
-              <li key={lIdx}>{line.replace(/^\d+[\.\)]\s+/, '')}</li>
-            ))}
-          </ol>
-        )
-      }
-
-      return (
-        <p key={pIdx} className="chatbot-bubble-text">
-          {lines.join(' ')}
-        </p>
-      )
-    })
-  }
 
   return (
     <div className={`chatbot-message-row ${isUser ? 'chatbot-message-row--user' : 'chatbot-message-row--ai'}`}>
@@ -117,7 +70,15 @@ function MessageBubble({ role, content }) {
         <div className="chatbot-avatar chatbot-avatar--ai" aria-hidden="true">AI</div>
       )}
       <div className={`chatbot-bubble ${isUser ? 'chatbot-bubble--user' : 'chatbot-bubble--ai'}`}>
-        {renderContent(content)}
+        {isUser ? (
+          <p className="chatbot-bubble-text">{content}</p>
+        ) : (
+          <div className="chatbot-markdown">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
       {isUser && (
         <div className="chatbot-avatar chatbot-avatar--user" aria-hidden="true">You</div>
@@ -125,8 +86,6 @@ function MessageBubble({ role, content }) {
     </div>
   )
 }
-
-// ─── Session-expired banner shown inside the chat panel ──────────────────────
 
 function SessionExpiredBanner({ onLoginClick }) {
   return (
@@ -144,11 +103,9 @@ function SessionExpiredBanner({ onLoginClick }) {
   )
 }
 
-// ─── Main ChatbotWidget component ────────────────────────────────────────────
-
 export default function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState([])          // [{role, content}]
+  const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -159,14 +116,12 @@ export default function ChatbotWidget() {
   const panelRef = useRef(null)
   const navigate = useNavigate()
 
-  // Scroll to the latest message whenever messages or loading state change
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isLoading])
 
-  // Focus the input when the panel opens (only if session is still valid)
   useEffect(() => {
     if (isOpen && !sessionExpired && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 120)
@@ -195,17 +150,14 @@ export default function ChatbotWidget() {
     if (!trimmed || isLoading || sessionExpired) return
 
     const userMessage = { role: 'user', content: trimmed }
+    const currentHistory = [...messages]
 
-    // Append the user message immediately for a snappy feel
     setMessages((prev) => [...prev, userMessage])
     setInputValue('')
     setError('')
     setIsLoading(true)
 
     try {
-      // Snapshot the history BEFORE appending the new user message —
-      // the backend expects history + message separately.
-      const currentHistory = messages
       const data = await api.chat(trimmed, currentHistory, '')
       const assistantMessage = {
         role: 'assistant',
@@ -214,8 +166,6 @@ export default function ChatbotWidget() {
       setMessages((prev) => [...prev, assistantMessage])
     } catch (err) {
       if (err instanceof AuthError) {
-        // Token is invalid / server restarted — show the session-expired UI.
-        // api.js already wiped localStorage, so no stale data remains.
         setSessionExpired(true)
         setError('')
       } else {
@@ -227,7 +177,6 @@ export default function ChatbotWidget() {
   }, [inputValue, isLoading, messages, sessionExpired])
 
   function handleKeyDown(e) {
-    // Send on Enter; allow Shift+Enter for a new line
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
@@ -238,7 +187,6 @@ export default function ChatbotWidget() {
 
   return (
     <>
-      {/* ── Floating toggle button ── */}
       <button
         className={`chatbot-fab ${isOpen ? 'chatbot-fab--open' : ''}`}
         onClick={toggleOpen}
@@ -249,11 +197,8 @@ export default function ChatbotWidget() {
         {!isOpen && <span className="chatbot-fab-label">Ask AI</span>}
       </button>
 
-      {/* ── Chat panel ── */}
       {isOpen && (
         <div className="chatbot-panel" ref={panelRef} role="dialog" aria-label="AI Learning Assistant">
-
-          {/* Header */}
           <div className="chatbot-header">
             <div className="chatbot-header-identity">
               <div className="chatbot-header-avatar">AI</div>
@@ -284,21 +229,17 @@ export default function ChatbotWidget() {
             </div>
           </div>
 
-          {/* Messages area */}
           <div className="chatbot-messages" aria-live="polite" aria-atomic="false">
-
-            {/* Session expired state — shown instead of messages */}
             {sessionExpired ? (
               <SessionExpiredBanner onLoginClick={handleSessionExpiredLogin} />
             ) : (
               <>
-                {/* Empty / welcome state */}
                 {!hasMessages && !isLoading && (
                   <div className="chatbot-empty-state">
                     <div className="chatbot-empty-icon">🎓</div>
                     <p className="chatbot-empty-title">How can I help you learn?</p>
                     <p className="chatbot-empty-subtitle">
-                      Ask me anything — concepts, tools, workflows, examples, best practices, or
+                      Ask me anything, including concepts, tools, workflows, examples, best practices, or
                       explanations for any topic in your course.
                     </p>
                     <div className="chatbot-suggestion-list">
@@ -323,12 +264,10 @@ export default function ChatbotWidget() {
                   </div>
                 )}
 
-                {/* Conversation messages */}
                 {messages.map((msg, idx) => (
                   <MessageBubble key={idx} role={msg.role} content={msg.content} />
                 ))}
 
-                {/* Loading / typing indicator */}
                 {isLoading && (
                   <div className="chatbot-message-row chatbot-message-row--ai">
                     <div className="chatbot-avatar chatbot-avatar--ai" aria-hidden="true">AI</div>
@@ -338,7 +277,6 @@ export default function ChatbotWidget() {
                   </div>
                 )}
 
-                {/* Generic error banner (non-auth errors) */}
                 {error && (
                   <div className="chatbot-error-banner">
                     <span>⚠ {error}</span>
@@ -351,7 +289,6 @@ export default function ChatbotWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input area — hidden when session is expired */}
           {!sessionExpired && (
             <>
               <div className="chatbot-input-area">
@@ -361,7 +298,7 @@ export default function ChatbotWidget() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask a question about any topic…"
+                  placeholder="Ask a question about any topic..."
                   rows={1}
                   disabled={isLoading}
                   aria-label="Chat message input"

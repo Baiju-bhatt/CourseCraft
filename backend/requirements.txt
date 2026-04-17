@@ -2,8 +2,11 @@ Flask==3.0.3
 Flask-Cors==4.0.1
 Flask-SQLAlchemy==3.1.1
 Werkzeug==3.0.3
+python-dotenv==1.0.1
 requests==2.32.3
 gunicorn==23.0.0
 pandas==2.2.3
 openpyxl==3.1.5
 numpy==2.1.3
+huggingface_hub==0.31.1
+reportlab==4.2.5

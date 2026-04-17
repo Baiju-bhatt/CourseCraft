@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../api'
+import { api, notifyAuthChanged } from '../api'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -22,6 +22,7 @@ export default function RegisterPage() {
       const data = await api.register(form)
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      notifyAuthChanged()
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
