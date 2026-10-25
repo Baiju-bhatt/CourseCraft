@@ -1,6 +1,8 @@
 
 # CourseCraft | AI-Powered Course Content Generator
 
+**Live Application:** [Launch CourseCraft](https://your-actual-railway-url)
+
 **CourseCraft** is an AI-driven learning platform designed to transform traditional, one-size-fits-all education into a **personalized and adaptive learning experience**.
 
 By leveraging **Large Language Models (LLMs)** and intelligent prompt engineering, CourseCraft dynamically generates structured courses, learning materials, and assessments tailored to individual knowledge levels, learning goals, and preferred study durations.
