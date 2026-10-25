@@ -1,7 +1,7 @@
 
 # CourseCraft | AI-Powered Course Content Generator
 
-**Live Application:** [Launch CourseCraft](https://your-actual-railway-url)
+**Live Application:** [Launch CourseCraft](responsible-vitality-production-f213.up.railway.app)
 
 **CourseCraft** is an AI-driven learning platform designed to transform traditional, one-size-fits-all education into a **personalized and adaptive learning experience**.
 
